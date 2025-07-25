@@ -31,6 +31,7 @@ public class BellmanFordVisualizer extends Pane {
     private int sourceVertex = 0;
     private Integer tempEdgeFrom = null; // For edge creation
     private Map<Integer, Double[]> vertexPositions = new HashMap<>(); // Store positions for each vertex
+    private boolean isDragging = false;
 
     public BellmanFordVisualizer(Graph graph) {
         this.graph = graph;
@@ -52,14 +53,12 @@ public class BellmanFordVisualizer extends Pane {
     private void handleMouseClick(MouseEvent event) {
         double x = event.getX();
         double y = event.getY();
-        // Check if click is on a vertex
         Integer clickedVertex = getVertexAt(x, y);
-        if (event.getButton() == MouseButton.PRIMARY) {
+        // Only allow node creation if not dragging
+        if (event.getButton() == MouseButton.PRIMARY && !isDragging) {
             if (clickedVertex == null) {
-                // Add new vertex
                 int newId = getNextVertexId();
                 graph.addVertex(newId);
-                // Store position where user clicked, or center if not available
                 vertexPositions.put(newId, new Double[] { x, y });
                 drawGraph();
             } else {
@@ -67,7 +66,6 @@ public class BellmanFordVisualizer extends Pane {
                 if (tempEdgeFrom == null) {
                     tempEdgeFrom = clickedVertex;
                 } else if (!tempEdgeFrom.equals(clickedVertex)) {
-                    // Prompt for weight
                     TextInputDialog dialog = new TextInputDialog("1");
                     dialog.setTitle("Edge Weight");
                     dialog.setHeaderText("Enter weight for edge " + tempEdgeFrom + " → " + clickedVertex);
@@ -87,7 +85,6 @@ public class BellmanFordVisualizer extends Pane {
             }
         } else if (event.getButton() == MouseButton.SECONDARY) {
             if (clickedVertex != null) {
-                // Show context menu: remove vertex, set as source
                 ChoiceDialog<String> dialog = new ChoiceDialog<>("Remove Vertex",
                         Arrays.asList("Remove Vertex", "Set as Source"));
                 dialog.setTitle("Vertex Options");
@@ -105,7 +102,6 @@ public class BellmanFordVisualizer extends Pane {
                     }
                 }
             } else {
-                // Remove edge if right-clicked near edge
                 Graph.Edge edge = getEdgeAt(x, y);
                 if (edge != null) {
                     graph.removeEdge(edge.from, edge.to);
@@ -113,6 +109,7 @@ public class BellmanFordVisualizer extends Pane {
                 }
             }
         }
+        isDragging = false; // Reset after any click
     }
 
     /**
@@ -291,7 +288,15 @@ public class BellmanFordVisualizer extends Pane {
             }
         }
         // Draw edges
+        Set<String> drawnEdges = new HashSet<>();
         for (Graph.Edge e : graph.getEdges()) {
+            // Only draw one edge per unordered pair
+            int min = Math.min(e.from, e.to);
+            int max = Math.max(e.from, e.to);
+            String key = min + "," + max;
+            if (drawnEdges.contains(key))
+                continue;
+            drawnEdges.add(key);
             Double[] fromPos = vertexPositions.get(e.from);
             Double[] toPos = vertexPositions.get(e.to);
             if (fromPos != null && toPos != null) {
@@ -299,9 +304,16 @@ public class BellmanFordVisualizer extends Pane {
                 line.setStroke(Color.GRAY);
                 getChildren().add(line);
                 edgeLines.put(e, line);
+                // Offset label perpendicular to edge
                 double midX = (fromPos[0] + toPos[0]) / 2;
                 double midY = (fromPos[1] + toPos[1]) / 2;
-                Text weightText = new Text(midX, midY, String.format("%.1f", e.weight));
+                double dx = toPos[0] - fromPos[0];
+                double dy = toPos[1] - fromPos[1];
+                double len = Math.hypot(dx, dy);
+                double offset = 28;
+                double perpX = -dy / len * (offset / 2);
+                double perpY = dx / len * (offset / 2);
+                Text weightText = new Text(midX + perpX, midY + perpY, String.format("%.1f", e.weight));
                 weightText.setFill(Color.DARKBLUE);
                 getChildren().add(weightText);
             }
@@ -315,11 +327,13 @@ public class BellmanFordVisualizer extends Pane {
             circle.setStrokeWidth(v == sourceVertex ? 4 : 2);
             // Drag-and-drop handlers (robust: only update node and edges during drag)
             circle.setOnMousePressed(e -> {
+                isDragging = false;
                 circle.setUserData(
                         new double[] { e.getSceneX() - circle.getCenterX(), e.getSceneY() - circle.getCenterY() });
                 e.consume();
             });
             circle.setOnMouseDragged(e -> {
+                isDragging = true;
                 Object userData = circle.getUserData();
                 if (userData instanceof double[]) {
                     double[] offset = (double[]) userData;
@@ -330,15 +344,17 @@ public class BellmanFordVisualizer extends Pane {
                     circle.setCenterX(newX);
                     circle.setCenterY(newY);
                     vertexPositions.put(v, new Double[] { newX, newY });
-                    // Update connected edges and labels only
                     updateConnectedEdgesAndLabels(v, newX, newY);
                 }
                 e.consume();
             });
             circle.setOnMouseReleased(e -> {
-                Double[] newPos = new Double[] { circle.getCenterX(), circle.getCenterY() };
-                vertexPositions.put(v, newPos);
-                drawGraph(); // Redraw everything after drag is finished
+                if (isDragging) {
+                    Double[] newPos = new Double[] { circle.getCenterX(), circle.getCenterY() };
+                    vertexPositions.put(v, newPos);
+                    drawGraph();
+                }
+                isDragging = false;
                 e.consume();
             });
             getChildren().add(circle);
