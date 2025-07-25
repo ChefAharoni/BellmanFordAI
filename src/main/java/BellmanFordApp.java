@@ -35,7 +35,8 @@ public class BellmanFordApp extends Application {
         Button playBtn = new Button("Play");
         Button pauseBtn = new Button("Pause");
         Button randomizeBtn = new Button("Randomize Weights");
-        HBox controls = new HBox(10, runBtn, prevBtn, nextBtn, playBtn, pauseBtn, randomizeBtn);
+        Button clearBtn = new Button("Clear");
+        HBox controls = new HBox(10, runBtn, prevBtn, nextBtn, playBtn, pauseBtn, randomizeBtn, clearBtn);
         controls.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         BorderPane root = new BorderPane();
@@ -71,6 +72,14 @@ public class BellmanFordApp extends Application {
                     graph.removeEdge(to, from); // ensure only one direction
                 }
             }
+            visualizer.drawGraph();
+        });
+        clearBtn.setOnAction(e -> {
+            // Remove all nodes and edges
+            for (int v : new ArrayList<>(graph.getVertices())) {
+                graph.removeVertex(v);
+            }
+            visualizer.vertexPositions.clear();
             visualizer.drawGraph();
         });
     }

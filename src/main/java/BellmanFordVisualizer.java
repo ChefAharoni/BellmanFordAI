@@ -30,7 +30,7 @@ public class BellmanFordVisualizer extends Pane {
     private double[] lastDistances;
     private int sourceVertex = 0;
     private Integer tempEdgeFrom = null; // For edge creation
-    private Map<Integer, Double[]> vertexPositions = new HashMap<>(); // Store positions for each vertex
+    public Map<Integer, Double[]> vertexPositions = new HashMap<>(); // Store positions for each vertex
     private boolean isDragging = false;
 
     public BellmanFordVisualizer(Graph graph) {
