@@ -30,6 +30,7 @@ public class BellmanFordVisualizer extends Pane {
     private double[] lastDistances;
     private int sourceVertex = 0;
     private Integer tempEdgeFrom = null; // For edge creation
+    private Map<Integer, Double[]> vertexPositions = new HashMap<>(); // Store positions for each vertex
 
     public BellmanFordVisualizer(Graph graph) {
         this.graph = graph;
@@ -58,6 +59,8 @@ public class BellmanFordVisualizer extends Pane {
                 // Add new vertex
                 int newId = getNextVertexId();
                 graph.addVertex(newId);
+                // Store position where user clicked, or center if not available
+                vertexPositions.put(newId, new Double[] { x, y });
                 drawGraph();
             } else {
                 // Start or finish edge creation
@@ -94,6 +97,7 @@ public class BellmanFordVisualizer extends Pane {
                 if (result.isPresent()) {
                     if (result.get().equals("Remove Vertex")) {
                         graph.removeVertex(clickedVertex);
+                        vertexPositions.remove(clickedVertex);
                         drawGraph();
                     } else if (result.get().equals("Set as Source")) {
                         sourceVertex = clickedVertex;
@@ -273,27 +277,28 @@ public class BellmanFordVisualizer extends Pane {
         vertexNodes.clear();
         edgeLines.clear();
         distanceLabels.clear();
-        // Layout vertices in a circle for simplicity
         List<Integer> vertices = new ArrayList<>(graph.getVertices());
         int n = vertices.size();
         double centerX = 400, centerY = 300, radius = 200;
-        Map<Integer, Double[]> positions = new HashMap<>();
+        // Assign default positions for any missing
         for (int i = 0; i < n; i++) {
-            double angle = 2 * Math.PI * i / n;
-            double x = centerX + radius * Math.cos(angle);
-            double y = centerY + radius * Math.sin(angle);
-            positions.put(vertices.get(i), new Double[] { x, y });
+            int v = vertices.get(i);
+            if (!vertexPositions.containsKey(v)) {
+                double angle = 2 * Math.PI * i / n;
+                double x = centerX + radius * Math.cos(angle);
+                double y = centerY + radius * Math.sin(angle);
+                vertexPositions.put(v, new Double[] { x, y });
+            }
         }
         // Draw edges
         for (Graph.Edge e : graph.getEdges()) {
-            Double[] fromPos = positions.get(e.from);
-            Double[] toPos = positions.get(e.to);
+            Double[] fromPos = vertexPositions.get(e.from);
+            Double[] toPos = vertexPositions.get(e.to);
             if (fromPos != null && toPos != null) {
                 Line line = new Line(fromPos[0], fromPos[1], toPos[0], toPos[1]);
                 line.setStroke(Color.GRAY);
                 getChildren().add(line);
                 edgeLines.put(e, line);
-                // Draw weight label
                 double midX = (fromPos[0] + toPos[0]) / 2;
                 double midY = (fromPos[1] + toPos[1]) / 2;
                 Text weightText = new Text(midX, midY, String.format("%.1f", e.weight));
@@ -302,13 +307,40 @@ public class BellmanFordVisualizer extends Pane {
             }
         }
         // Draw vertices
-        for (Map.Entry<Integer, Double[]> entry : positions.entrySet()) {
+        for (Map.Entry<Integer, Double[]> entry : vertexPositions.entrySet()) {
             int v = entry.getKey();
             Double[] pos = entry.getValue();
-            // Highlight source vertex with a different color/border
             Circle circle = new Circle(pos[0], pos[1], 25, v == sourceVertex ? Color.GOLD : Color.LIGHTBLUE);
             circle.setStroke(v == sourceVertex ? Color.DARKGOLDENROD : Color.DARKBLUE);
             circle.setStrokeWidth(v == sourceVertex ? 4 : 2);
+            // Drag-and-drop handlers (robust: only update node and edges during drag)
+            circle.setOnMousePressed(e -> {
+                circle.setUserData(
+                        new double[] { e.getSceneX() - circle.getCenterX(), e.getSceneY() - circle.getCenterY() });
+                e.consume();
+            });
+            circle.setOnMouseDragged(e -> {
+                Object userData = circle.getUserData();
+                if (userData instanceof double[]) {
+                    double[] offset = (double[]) userData;
+                    double newX = e.getSceneX() - offset[0];
+                    double newY = e.getSceneY() - offset[1];
+                    newX = Math.max(25, Math.min(getWidth() - 25, newX));
+                    newY = Math.max(25, Math.min(getHeight() - 25, newY));
+                    circle.setCenterX(newX);
+                    circle.setCenterY(newY);
+                    vertexPositions.put(v, new Double[] { newX, newY });
+                    // Update connected edges and labels only
+                    updateConnectedEdgesAndLabels(v, newX, newY);
+                }
+                e.consume();
+            });
+            circle.setOnMouseReleased(e -> {
+                Double[] newPos = new Double[] { circle.getCenterX(), circle.getCenterY() };
+                vertexPositions.put(v, newPos);
+                drawGraph(); // Redraw everything after drag is finished
+                e.consume();
+            });
             getChildren().add(circle);
             vertexNodes.put(v, circle);
             Text label = new Text(pos[0] - 5, pos[1] + 5, String.valueOf(v));
@@ -356,4 +388,31 @@ public class BellmanFordVisualizer extends Pane {
 
     // TODO: Add methods for user interaction (add/remove vertex/edge, set source,
     // etc.)
+
+    // Add this helper method to update only the edges and labels connected to a
+    // node during drag
+    private void updateConnectedEdgesAndLabels(int vertex, double newX, double newY) {
+        // Update outgoing edges
+        for (Graph.Edge e : graph.getEdges()) {
+            if (e.from == vertex || e.to == vertex) {
+                Line line = edgeLines.get(e);
+                if (line != null) {
+                    Double[] fromPos = vertexPositions.get(e.from);
+                    Double[] toPos = vertexPositions.get(e.to);
+                    if (fromPos != null && toPos != null) {
+                        line.setStartX(fromPos[0]);
+                        line.setStartY(fromPos[1]);
+                        line.setEndX(toPos[0]);
+                        line.setEndY(toPos[1]);
+                    }
+                }
+            }
+        }
+        // Update label position
+        Text label = distanceLabels.get(vertex);
+        if (label != null) {
+            label.setX(newX - 5);
+            label.setY(newY + 5);
+        }
+    }
 }
