@@ -1,0 +1,32 @@
+# Java build output
+/out/
+*.class
+
+# IDE files
+/.idea/
+*.iml
+*.ipr
+*.iws
+/.vscode/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Logs
+*.log
+
+# JavaFX SDK (if downloaded here)
+/javafx-sdk-*/
+
+# Test output
+/test-output/
+
+# Misc
+*.swp
+*~ 
