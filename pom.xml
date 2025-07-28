@@ -50,9 +50,7 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>BellmanFordApp</mainClass>
-                    <jvmArgs>
-                        <jvmArg>--add-modules=javafx.controls,javafx.fxml</jvmArg>
-                    </jvmArgs>
+                    <!-- No additional JVM args needed for standard run -->
                 </configuration>
             </plugin>
         </plugins>

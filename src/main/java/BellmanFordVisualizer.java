@@ -13,12 +13,54 @@ import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.scene.layout.StackPane;
+import javafx.geometry.Pos;
+import javafx.scene.layout.AnchorPane;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.geometry.Insets;
+import javafx.scene.layout.Priority;
 
 /**
  * JavaFX Pane for visualizing the graph and Bellman-Ford algorithm.
  * Handles drawing, animation, and user interaction.
  */
-public class BellmanFordVisualizer extends Pane {
+public class BellmanFordVisualizer extends StackPane {
+
+    /**
+     * Data class for table rows showing distance information.
+     */
+    public static class DistanceRow {
+        private final int vertex;
+        private final String distance;
+        private final String status;
+
+        public DistanceRow(int vertex, String distance, String status) {
+            this.vertex = vertex;
+            this.distance = distance;
+            this.status = status;
+        }
+
+        public int getVertex() {
+            return vertex;
+        }
+
+        public String getDistance() {
+            return distance;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+    }
+
     private Graph graph;
     private Map<Integer, Circle> vertexNodes = new HashMap<>();
     private Map<Graph.Edge, Line> edgeLines = new HashMap<>();
@@ -33,18 +75,112 @@ public class BellmanFordVisualizer extends Pane {
     public Map<Integer, Double[]> vertexPositions = new HashMap<>(); // Store positions for each vertex
     private boolean isDragging = false;
 
+    // Table components for distance tracking
+    private TableView<DistanceRow> distanceTable;
+    private ObservableList<DistanceRow> tableData = FXCollections.observableArrayList();
+
+    private AnchorPane graphPane; // For graph drawing only
+    private VBox overlayBox; // For table and legend
+    private static final double LEFT_MARGIN = 300; // px reserved for sidebar (table + legend)
+
     public BellmanFordVisualizer(Graph graph) {
         this.graph = graph;
         setPrefSize(800, 600);
+        graphPane = new AnchorPane();
+        graphPane.setPrefSize(800, 600);
+        overlayBox = new VBox();
+        overlayBox.setPrefWidth(LEFT_MARGIN);
+        overlayBox.setMinWidth(LEFT_MARGIN);
+        overlayBox.setMaxWidth(LEFT_MARGIN);
+        overlayBox.setStyle("-fx-background-color: #ffffff;");
+        overlayBox.setPickOnBounds(true); // consume clicks in sidebar
+        overlayBox.setMouseTransparent(false);
+        setupDistanceTable();
+        setupLegend();
+        getChildren().addAll(graphPane, overlayBox);
+        StackPane.setAlignment(overlayBox, Pos.TOP_LEFT);
+
+        // Initialize with initial distances
+        initializeDistances();
         drawGraph();
         setupMouseHandlers();
+    }
+
+    /**
+     * Initialize distances with all infinity except source
+     */
+    private void initializeDistances() {
+        int maxVertex = graph.getVertices().stream().mapToInt(Integer::intValue).max().orElse(0);
+        lastDistances = new double[maxVertex + 1];
+        Arrays.fill(lastDistances, Double.POSITIVE_INFINITY);
+        lastDistances[sourceVertex] = 0;
+        updateDistanceTable(lastDistances);
+    }
+
+    /**
+     * Sets up the distance tracking table.
+     */
+    private void setupDistanceTable() {
+        distanceTable = new TableView<>();
+        distanceTable.setPrefWidth(220);
+        distanceTable.setMaxWidth(220);
+        distanceTable.setMinWidth(220);
+        distanceTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        distanceTable.setStyle("-fx-background-color: #fff; -fx-border-color: #bbb; -fx-border-width: 1;");
+        // Create columns with explicit cell value factories
+        TableColumn<DistanceRow, Integer> vertexCol = new TableColumn<>("Vertex");
+        vertexCol.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleIntegerProperty(cellData.getValue().getVertex())
+                        .asObject());
+        vertexCol.setPrefWidth(60);
+
+        TableColumn<DistanceRow, String> distanceCol = new TableColumn<>("Distance");
+        distanceCol.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDistance()));
+        distanceCol.setPrefWidth(80);
+
+        TableColumn<DistanceRow, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getStatus()));
+        statusCol.setPrefWidth(80);
+
+        distanceTable.getColumns().setAll(vertexCol, distanceCol, statusCol);
+        distanceTable.setItems(tableData);
+        distanceTable.setMouseTransparent(true);
+        distanceTable.setFocusTraversable(false);
+        VBox.setMargin(distanceTable, new javafx.geometry.Insets(10, 0, 0, 10));
+    }
+
+    /**
+     * Sets up the legend.
+     */
+    private void setupLegend() {
+        VBox legend = new VBox(5);
+        legend.setStyle("-fx-background-color: #f9f9f9; -fx-padding: 8; -fx-border-color: #bbb; -fx-border-width: 1;");
+        legend.getChildren().addAll(
+                new Text("Legend:"),
+                new Text("• Gold node: Source vertex"),
+                new Text("• Orange edge: Relaxed (distance updated)"),
+                new Text("• Red edge: Not relaxed (no update)"),
+                new Text("• Green label: Current distance"),
+                new Text("• Left-click empty: Add vertex"),
+                new Text("• Left-click vertex: Start/end edge creation"),
+                new Text("• Right-click vertex: Remove/Set as source"),
+                new Text("• Right-click edge: Remove edge"));
+        legend.setMaxWidth(260);
+        legend.setMinWidth(260);
+
+        // Add legend below the table inside sidebar
+        VBox.setVgrow(distanceTable, Priority.ALWAYS);
+        overlayBox.getChildren().setAll(distanceTable, legend);
+        VBox.setMargin(legend, new Insets(10, 10, 10, 10));
     }
 
     /**
      * Sets up mouse event handlers for user interaction.
      */
     private void setupMouseHandlers() {
-        setOnMouseClicked(this::handleMouseClick);
+        graphPane.setOnMouseClicked(this::handleMouseClick);
     }
 
     /**
@@ -53,6 +189,12 @@ public class BellmanFordVisualizer extends Pane {
     private void handleMouseClick(MouseEvent event) {
         double x = event.getX();
         double y = event.getY();
+
+        // Ignore clicks inside sidebar
+        if (x <= LEFT_MARGIN) {
+            return;
+        }
+
         Integer clickedVertex = getVertexAt(x, y);
         // Only allow node creation if not dragging
         if (event.getButton() == MouseButton.PRIMARY && !isDragging) {
@@ -186,6 +328,7 @@ public class BellmanFordVisualizer extends Pane {
      */
     public void setSourceVertex(int v) {
         this.sourceVertex = v;
+        initializeDistances(); // Reinitialize distances with new source
         drawGraph();
     }
 
@@ -196,8 +339,14 @@ public class BellmanFordVisualizer extends Pane {
         this.steps = steps;
         this.currentStep = 0;
         if (!steps.isEmpty()) {
-            // Use the final distances from the last step, not the initial distances
-            lastDistances = Arrays.copyOf(steps.get(steps.size() - 1).distanceSnapshot, steps.get(steps.size() - 1).distanceSnapshot.length);
+            // Initialize with initial distances (all infinity except source)
+            int maxVertex = graph.getVertices().stream().mapToInt(Integer::intValue).max().orElse(0);
+            lastDistances = new double[maxVertex + 1];
+            Arrays.fill(lastDistances, Double.POSITIVE_INFINITY);
+            lastDistances[sourceVertex] = 0;
+        } else {
+            // If no steps, initialize with current graph state
+            initializeDistances();
         }
         drawGraph();
         updateDistances(lastDistances);
@@ -252,32 +401,21 @@ public class BellmanFordVisualizer extends Pane {
      * Draws a legend explaining the colors and controls.
      */
     private void drawLegend() {
-        VBox legend = new VBox(5);
-        legend.setStyle("-fx-background-color: #f9f9f9; -fx-padding: 8; -fx-border-color: #bbb; -fx-border-width: 1;");
-        legend.setLayoutX(10);
-        legend.setLayoutY(10);
-        legend.getChildren().addAll(
-                new Text("Legend:"),
-                new Text("• Gold node: Source vertex"),
-                new Text("• Orange edge: Relaxed (distance updated)"),
-                new Text("• Red edge: Not relaxed (no update)"),
-                new Text("• Green label: Current distance"),
-                new Text("• Left-click empty: Add vertex"),
-                new Text("• Left-click vertex: Start/end edge creation"),
-                new Text("• Right-click vertex: Remove/Set as source"),
-                new Text("• Right-click edge: Remove edge"));
-        getChildren().add(legend);
+        // This method is no longer needed as legend is persistent
     }
 
     /** Draws the current state of the graph. */
     public void drawGraph() {
-        getChildren().clear();
+        graphPane.getChildren().clear();
         vertexNodes.clear();
         edgeLines.clear();
         distanceLabels.clear();
         List<Integer> vertices = new ArrayList<>(graph.getVertices());
         int n = vertices.size();
-        double centerX = 400, centerY = 300, radius = 200;
+        double paneWidth = getWidth() > 0 ? getWidth() : 800;
+        double centerX = LEFT_MARGIN + (paneWidth - LEFT_MARGIN) / 2;
+        double centerY = 300;
+        double radius = 200;
         // Assign default positions for any missing
         for (int i = 0; i < n; i++) {
             int v = vertices.get(i);
@@ -303,7 +441,7 @@ public class BellmanFordVisualizer extends Pane {
             if (fromPos != null && toPos != null) {
                 Line line = new Line(fromPos[0], fromPos[1], toPos[0], toPos[1]);
                 line.setStroke(Color.GRAY);
-                getChildren().add(line);
+                graphPane.getChildren().add(line);
                 edgeLines.put(e, line);
                 // Offset label perpendicular to edge
                 double midX = (fromPos[0] + toPos[0]) / 2;
@@ -316,7 +454,7 @@ public class BellmanFordVisualizer extends Pane {
                 double perpY = dx / len * (offset / 2);
                 Text weightText = new Text(midX + perpX, midY + perpY, String.format("%.1f", e.weight));
                 weightText.setFill(Color.DARKBLUE);
-                getChildren().add(weightText);
+                graphPane.getChildren().add(weightText);
             }
         }
         // Draw vertices
@@ -358,14 +496,13 @@ public class BellmanFordVisualizer extends Pane {
                 isDragging = false;
                 e.consume();
             });
-            getChildren().add(circle);
+            graphPane.getChildren().add(circle);
             vertexNodes.put(v, circle);
             Text label = new Text(pos[0] - 5, pos[1] + 5, String.valueOf(v));
             label.setFill(Color.BLACK);
-            getChildren().add(label);
+            graphPane.getChildren().add(label);
         }
         updateDistances(lastDistances);
-        drawLegend();
     }
 
     /**
@@ -398,8 +535,29 @@ public class BellmanFordVisualizer extends Pane {
             String label = (d == Double.POSITIVE_INFINITY) ? "∞" : String.format("%.1f", d);
             Text distLabel = new Text(circle.getCenterX() - 15, circle.getCenterY() - 30, label);
             distLabel.setFill(Color.FORESTGREEN);
-            getChildren().add(distLabel);
+            graphPane.getChildren().add(distLabel);
             distanceLabels.put(v, distLabel);
+        }
+
+        // Update the distance table
+        updateDistanceTable(distances);
+    }
+
+    /**
+     * Updates the distance table with current distance values.
+     */
+    private void updateDistanceTable(double[] distances) {
+        tableData.clear();
+        List<Integer> vertices = new ArrayList<>(graph.getVertices());
+        vertices.sort(Integer::compareTo);
+
+        for (int v : vertices) {
+            double d = v < distances.length ? distances[v] : Double.POSITIVE_INFINITY;
+            String distanceStr = (d == Double.POSITIVE_INFINITY) ? "∞" : String.format("%.1f", d);
+            String status = (v == sourceVertex) ? "Source"
+                    : (d == Double.POSITIVE_INFINITY) ? "Unreachable" : "Reachable";
+
+            tableData.add(new DistanceRow(v, distanceStr, status));
         }
     }
 

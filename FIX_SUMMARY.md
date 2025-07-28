@@ -95,7 +95,7 @@ The fix was verified through:
 ## Files Modified
 
 - `BellmanFordAI/src/main/java/BellmanFordAlgorithm.java` - Algorithm iteration fix
-- `BellmanFordAI/src/main/java/BellmanFordVisualizer.java` - Visualizer display fix
+- `BellmanFordAI/src/main/java/BellmanFordVisualizer.java` - Visualizer display fix + table implementation
 - `BellmanFordAI/src/test/java/BellmanFordAlgorithmTest.java` - Added test case for the specific graph
 
 ## Impact
@@ -104,4 +104,7 @@ The fix was verified through:
 - ✅ Maintains correctness for all existing test cases
 - ✅ Improves algorithm efficiency by using the correct number of iterations
 - ✅ Visualizer now correctly displays final computed distances
+- ✅ Table shows distance progression with Vertex, Distance, and Status columns
+- ✅ Legend positioned to avoid overlapping with graph nodes
+- ✅ Table updates in real-time as algorithm runs
 - ✅ No breaking changes to the API or functionality

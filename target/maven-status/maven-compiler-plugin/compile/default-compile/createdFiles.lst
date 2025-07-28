@@ -1,6 +1,6 @@
+BellmanFordVisualizer$DistanceRow.class
 BellmanFordAlgorithm.class
 BellmanFordVisualizer.class
-TestVisualizerFix.class
 Graph.class
 Graph$Edge.class
 BellmanFordAlgorithm$Step.class
