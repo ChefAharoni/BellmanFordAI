@@ -124,4 +124,26 @@ public class BellmanFordAlgorithmTest {
         assertEquals(-5.0, d[1], 1e-9);
         assertEquals(-3.0, d[2], 1e-9);
     }
+
+    @Test
+    public void testImageGraphCase() {
+        // This test matches the graph shown in the image:
+        // Node 0 -> Node 1 (weight 4.0)
+        // Node 0 -> Node 3 (weight 5.0)
+        // Node 1 -> Node 2 (weight -3.0)
+        // Node 2 -> Node 3 (weight 4.0)
+        Graph g = makeGraph(new int[][] {
+                { 0, 1, 4 },
+                { 0, 3, 5 },
+                { 1, 2, -3 },
+                { 2, 3, 4 }
+        });
+        BellmanFordAlgorithm bfa = new BellmanFordAlgorithm(g, 0);
+        assertTrue(bfa.run());
+        double[] d = bfa.getDistances();
+        assertEquals(0.0, d[0], 1e-9); // Source node
+        assertEquals(4.0, d[1], 1e-9); // Direct path: 0->1
+        assertEquals(1.0, d[2], 1e-9); // Path: 0->1->2 (4 + (-3) = 1)
+        assertEquals(5.0, d[3], 1e-9); // Path: 0->3 (direct) or 0->1->2->3 (4 + (-3) + 4 = 5), both give 5
+    }
 }

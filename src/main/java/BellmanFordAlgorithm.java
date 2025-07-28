@@ -36,9 +36,11 @@ public class BellmanFordAlgorithm {
     public BellmanFordAlgorithm(Graph graph, int source) {
         this.graph = graph;
         this.source = source;
-        int n = graph.getVertices().stream().max(Integer::compareTo).orElse(0) + 1;
-        distance = new double[n];
-        predecessor = new int[n];
+        // Find the maximum vertex ID to size arrays properly
+        int maxVertex = graph.getVertices().stream().mapToInt(Integer::intValue).max().orElse(0);
+        int arraySize = maxVertex + 1;
+        distance = new double[arraySize];
+        predecessor = new int[arraySize];
         steps = new ArrayList<>();
     }
 
@@ -48,14 +50,21 @@ public class BellmanFordAlgorithm {
      * @return true if no negative-weight cycles, false otherwise
      */
     public boolean run() {
-        int n = graph.getVertices().stream().max(Integer::compareTo).orElse(0) + 1;
+        // Get the actual number of vertices for the correct number of iterations
+        int numVertices = graph.getVertices().size();
+        int maxVertex = graph.getVertices().stream().mapToInt(Integer::intValue).max().orElse(0);
+        int arraySize = maxVertex + 1;
+
+        // Initialize arrays
         Arrays.fill(distance, Double.POSITIVE_INFINITY);
         Arrays.fill(predecessor, -1);
         distance[source] = 0;
         steps.clear();
 
         List<Graph.Edge> edges = graph.getEdges();
-        for (int i = 1; i < n; i++) {
+
+        // Run |V| - 1 iterations (not maxVertex iterations)
+        for (int i = 1; i < numVertices; i++) {
             for (Graph.Edge e : edges) {
                 boolean relaxed = false;
                 if (distance[e.from] + e.weight < distance[e.to]) {
@@ -66,6 +75,7 @@ public class BellmanFordAlgorithm {
                 steps.add(new Step(i, e, distance, predecessor, relaxed));
             }
         }
+
         // Check for negative-weight cycles
         for (Graph.Edge e : edges) {
             if (distance[e.from] + e.weight < distance[e.to]) {

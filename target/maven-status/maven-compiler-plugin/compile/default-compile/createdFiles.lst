@@ -1,6 +1,7 @@
-Graph.class
 BellmanFordAlgorithm.class
-Graph$Edge.class
 BellmanFordVisualizer.class
+TestVisualizerFix.class
+Graph.class
+Graph$Edge.class
 BellmanFordAlgorithm$Step.class
 BellmanFordApp.class

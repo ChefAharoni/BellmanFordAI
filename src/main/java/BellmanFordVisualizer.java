@@ -196,7 +196,8 @@ public class BellmanFordVisualizer extends Pane {
         this.steps = steps;
         this.currentStep = 0;
         if (!steps.isEmpty()) {
-            lastDistances = Arrays.copyOf(steps.get(0).distanceSnapshot, steps.get(0).distanceSnapshot.length);
+            // Use the final distances from the last step, not the initial distances
+            lastDistances = Arrays.copyOf(steps.get(steps.size() - 1).distanceSnapshot, steps.get(steps.size() - 1).distanceSnapshot.length);
         }
         drawGraph();
         updateDistances(lastDistances);
