@@ -49,11 +49,10 @@ public class BellmanFordApp extends Application {
 
         // Button actions
         runBtn.setOnAction(e -> {
-            // Use the current source vertex selected by the user
             int source = visualizer.getSourceVertex();
             BellmanFordAlgorithm bfa = new BellmanFordAlgorithm(graph, source);
             bfa.run();
-            visualizer.loadSteps(bfa.getSteps());
+            visualizer.showFinalDistances(bfa.getDistances());
         });
         nextBtn.setOnAction(e -> visualizer.nextStep());
         prevBtn.setOnAction(e -> visualizer.prevStep());

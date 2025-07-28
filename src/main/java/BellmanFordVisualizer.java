@@ -590,4 +590,15 @@ public class BellmanFordVisualizer extends StackPane {
             label.setY(newY + 5);
         }
     }
+
+    /**
+     * Display final distances (no animation).
+     */
+    public void showFinalDistances(double[] distances) {
+        this.steps = Collections.emptyList();
+        this.currentStep = 0;
+        this.lastDistances = Arrays.copyOf(distances, distances.length);
+        drawGraph();
+        updateDistances(lastDistances);
+    }
 }
