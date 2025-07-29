@@ -336,16 +336,17 @@ public class BellmanFordVisualizer extends StackPane {
      * Loads steps for visualization and resets state.
      */
     public void loadSteps(List<BellmanFordAlgorithm.Step> steps) {
+        System.out.println("loadSteps called with " + (steps != null ? steps.size() : "null") + " steps");
         this.steps = steps;
         this.currentStep = 0;
         if (!steps.isEmpty()) {
-            // Initialize with initial distances (all infinity except source)
-            int maxVertex = graph.getVertices().stream().mapToInt(Integer::intValue).max().orElse(0);
-            lastDistances = new double[maxVertex + 1];
-            Arrays.fill(lastDistances, Double.POSITIVE_INFINITY);
-            lastDistances[sourceVertex] = 0;
+            // Show the final distances from the last step
+            BellmanFordAlgorithm.Step lastStep = steps.get(steps.size() - 1);
+            lastDistances = Arrays.copyOf(lastStep.distanceSnapshot, lastStep.distanceSnapshot.length);
+            System.out.println("Loaded " + steps.size() + " steps, final distances: " + Arrays.toString(lastDistances));
         } else {
             // If no steps, initialize with current graph state
+            System.out.println("No steps provided, initializing with current graph state");
             initializeDistances();
         }
         drawGraph();
@@ -356,11 +357,15 @@ public class BellmanFordVisualizer extends StackPane {
      * Moves to the next step and animates it.
      */
     public void nextStep() {
-        if (steps == null || currentStep >= steps.size())
+        System.out.println("nextStep called - currentStep: " + currentStep + ", steps size: " + steps.size());
+        if (steps == null || currentStep >= steps.size()) {
+            System.out.println("nextStep returning early - no more steps");
             return;
+        }
         BellmanFordAlgorithm.Step step = steps.get(currentStep);
         animateStep(step);
         currentStep++;
+        System.out.println("nextStep completed - new currentStep: " + currentStep);
     }
 
     /**
@@ -377,8 +382,23 @@ public class BellmanFordVisualizer extends StackPane {
      * Plays the animation automatically.
      */
     public void play() {
-        if (playTimer != null)
+        // If no recorded steps yet, automatically run the algorithm first
+        if (steps == null || steps.isEmpty()) {
+            BellmanFordAlgorithm bfa = new BellmanFordAlgorithm(graph, sourceVertex);
+            bfa.run();
+            loadSteps(bfa.getSteps());
+        }
+
+        // Restart timer if already playing
+        if (playTimer != null) {
             playTimer.stop();
+        }
+
+        // Reset to beginning when we already reached the end
+        if (currentStep >= steps.size()) {
+            currentStep = 0;
+        }
+
         playTimer = new PauseTransition(Duration.seconds(1));
         playTimer.setOnFinished(e -> {
             if (currentStep < steps.size()) {

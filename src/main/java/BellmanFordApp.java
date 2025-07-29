@@ -11,6 +11,7 @@ import javafx.scene.layout.HBox;
 
 import java.util.Random;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Main application class for Bellman-Ford visualization.
@@ -49,10 +50,15 @@ public class BellmanFordApp extends Application {
 
         // Button actions
         runBtn.setOnAction(e -> {
+            System.out.println("Run button clicked!");
             int source = visualizer.getSourceVertex();
+            System.out.println("Source vertex: " + source);
             BellmanFordAlgorithm bfa = new BellmanFordAlgorithm(graph, source);
-            bfa.run();
-            visualizer.showFinalDistances(bfa.getDistances());
+            boolean result = bfa.run();
+            System.out.println("Algorithm run result: " + result);
+            List<BellmanFordAlgorithm.Step> steps = bfa.getSteps();
+            System.out.println("Algorithm generated " + steps.size() + " steps");
+            visualizer.loadSteps(steps);
         });
         nextBtn.setOnAction(e -> visualizer.nextStep());
         prevBtn.setOnAction(e -> visualizer.prevStep());
